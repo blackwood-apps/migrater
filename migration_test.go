@@ -81,9 +81,12 @@ func TestSet_UpgradeToVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = s.UpgradeToVersion(db, 1)
+	from, to, err := s.UpgradeToVersion(db, 1)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if from != 0 && to != 1 {
+		t.Fatalf("Upgraded targets didn't met the design from: %d (needed: %d), to: %d (needed: %d)", from, 0, to, 1)
 	}
 
 	_, err = db.Exec("INSERT INTO test (id) VALUES ($1)", 1)
@@ -102,7 +105,13 @@ func TestSet_UpgradeToVersion(t *testing.T) {
 		t.Fatal("Table from second migration already exists")
 	}
 
-	_, _, err = s.UpgradeToVersion(db, 2)
+	from, to, err = s.UpgradeToVersion(db, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if from != 1 && to != 2 {
+		t.Fatalf("Upgraded targets didn't met the design from: %d (needed: %d), to: %d (needed: %d)", from, 1, to, 2)
+	}
 
 	err = db.QueryRow("SELECT id FROM test;").Scan(&id1)
 	if err != nil {
@@ -114,7 +123,15 @@ func TestSet_UpgradeToVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, _, err = s.UpgradeToVersion(db, 1)
+	from, to, err = s.UpgradeToVersion(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if from != 2 && to != 1 {
+		t.Fatalf("Upgraded targets didn't met the design from: %d (needed: %d), to: %d (needed: %d)", from, 2, to, 1)
+	}
+
 	err = db.QueryRow("SELECT id FROM test;").Scan(&id1)
 	if err != nil {
 		t.Fatal(err)

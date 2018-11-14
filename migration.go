@@ -2,7 +2,6 @@ package migration
 
 import (
 	"database/sql"
-	"log"
 )
 
 type Step struct {
@@ -13,14 +12,15 @@ type Step struct {
 var initialMigration = Step{
 	StepsUp: []string{
 		"CREATE TABLE _meta_versions (version int PRIMARY KEY NOT NULL);",
-		"CREATE UNIQUE INDEX versions_version_uindex ON _meta_versions (version);",
 	},
-	StepsDown: []string{},
+	StepsDown: []string{
+		"DROP TABLE _meta_versions;",
+	},
 }
 
 type Set map[int]Step
 
-func (m Set) Upgrade(db *sql.DB) error {
+func (m Set) Upgrade(db *sql.DB) (int, int, error) {
 	return m.UpgradeToVersion(db, m.maxVersion())
 }
 
@@ -34,48 +34,45 @@ func (m Set) maxVersion() int {
 	return max
 }
 
-func (m Set) UpgradeToVersion(db *sql.DB, v int) error {
+func (m Set) UpgradeToVersion(db *sql.DB, v int) (int, int, error) {
 	err := ensureVersionStorageIsPresent(db)
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	cv, err := currentVersion(db)
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 	if cv > v {
 		for i := cv; i > v; i-- {
 			tx, err := db.Begin()
 			if err != nil {
-				return err
+				return 0, 0, err
 			}
 			err = m[i].unapply(i, tx)
 			if err != nil {
 				tx.Rollback()
-				return err
+				return 0, 0, err
 			}
 			tx.Commit()
 		}
-		log.Printf("Downgraded to version: %d", v)
-		return nil
+		return cv, v, nil
 	} else if cv < v {
 		for i := cv + 1; i <= v; i++ {
 			tx, err := db.Begin()
 			if err != nil {
-				return err
+				return 0, 0, err
 			}
 			err = m[i].apply(i, tx)
 			if err != nil {
 				tx.Rollback()
-				return err
+				return 0, 0, err
 			}
 			tx.Commit()
 		}
-		log.Printf("Upgraded to version: %d", v)
-		return nil
+		return cv, v, nil
 	} else {
-		log.Printf("Current version (%d) is already applied", cv)
-		return nil
+		return cv, cv, nil
 	}
 }
 
@@ -85,7 +82,6 @@ func (m Step) apply(v int, tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Migrated: %s", r)
 	}
 	_, err := tx.Exec("INSERT INTO _meta_versions (version) VALUES ($1)", v)
 	if err != nil {
@@ -100,7 +96,6 @@ func (m Step) unapply(v int, tx *sql.Tx) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Migrated: %s", r)
 	}
 	_, err := tx.Exec("DELETE FROM _meta_versions WHERE version = $1", v)
 	if err != nil {
@@ -123,17 +118,14 @@ func ensureVersionStorageIsPresent(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	var e int
+	var e string
 	err = tx.QueryRow("SELECT 1 FROM _meta_versions WHERE 1=2;").Scan(&e)
-	if err == sql.ErrNoRows {
+	if err != nil {
 		err = initialMigration.apply(0, tx)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
-	} else if err != nil {
-		tx.Rollback()
-		return err
 	}
 	tx.Commit()
 	return nil

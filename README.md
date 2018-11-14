@@ -15,18 +15,18 @@ First you should declare all your migrations
 ```gotemplate
 s := Set{
 	1: Step{
-		StepsUp: []string{
+		Up: []string{
 			"CREATE TABLE test (id int PRIMARY KEY);",
 		},
-		StepsDown: []string{
+		Down: []string{
 			"DROP TABLE test;",
 		},
 	},
 	2: Step{
-		StepsUp: []string{
+		Up: []string{
 			"CREATE TABLE test2 (id int PRIMARY KEY);",
 		},
-		StepsDown: []string{
+		Down: []string{
 			"DROP TABLE test2;",
 		},
 	},

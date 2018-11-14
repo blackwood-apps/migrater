@@ -5,15 +5,15 @@ import (
 )
 
 type Step struct {
-	StepsUp   []string
-	StepsDown []string
+	Up   []string
+	Down []string
 }
 
 var initialMigration = Step{
-	StepsUp: []string{
+	Up: []string{
 		"CREATE TABLE _meta_versions (version int PRIMARY KEY NOT NULL);",
 	},
-	StepsDown: []string{
+	Down: []string{
 		"DROP TABLE _meta_versions;",
 	},
 }
@@ -77,7 +77,7 @@ func (m Set) UpgradeToVersion(db *sql.DB, v int) (int, int, error) {
 }
 
 func (m Step) apply(v int, tx *sql.Tx) error {
-	for _, r := range m.StepsUp {
+	for _, r := range m.Up {
 		_, err := tx.Exec(r)
 		if err != nil {
 			return err
@@ -91,7 +91,7 @@ func (m Step) apply(v int, tx *sql.Tx) error {
 }
 
 func (m Step) unapply(v int, tx *sql.Tx) error {
-	for _, r := range m.StepsDown {
+	for _, r := range m.Down {
 		_, err := tx.Exec(r)
 		if err != nil {
 			return err
@@ -115,7 +115,7 @@ func currentVersion(db *sql.DB) (int, error) {
 
 func ensureVersionStorageIsPresent(db *sql.DB) error {
 	var e string
-	err := db.QueryRow("SELECT 1 FROM _meta_versions WHERE 1=2;").Scan(&e)
+	err := db.QueryRow("SELECT 1 FROM _meta_versions WHERE 1=1;").Scan(&e)
 	if err != nil {
 		tx, err := db.Begin()
 		if err != nil {

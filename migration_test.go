@@ -13,10 +13,10 @@ func TestSet_Upgrade(t *testing.T) {
 
 	s := Set{
 		1: Step{
-			StepsUp: []string{
+			Up: []string{
 				"CREATE TABLE test (id int PRIMARY KEY);",
 			},
-			StepsDown: []string{
+			Down: []string{
 				"DROP TABLE test;",
 			},
 		},
@@ -59,18 +59,18 @@ func TestSet_UpgradeToVersion(t *testing.T) {
 
 	s := Set{
 		1: Step{
-			StepsUp: []string{
+			Up: []string{
 				"CREATE TABLE test (id int PRIMARY KEY);",
 			},
-			StepsDown: []string{
+			Down: []string{
 				"DROP TABLE test;",
 			},
 		},
 		2: Step{
-			StepsUp: []string{
+			Up: []string{
 				"CREATE TABLE test2 (id int PRIMARY KEY);",
 			},
-			StepsDown: []string{
+			Down: []string{
 				"DROP TABLE test2;",
 			},
 		},
@@ -100,6 +100,29 @@ func TestSet_UpgradeToVersion(t *testing.T) {
 	_, err = db.Exec("INSERT INTO test2 (id) VALUES ($1)", 1)
 	if err == nil {
 		t.Fatal("Table from second migration already exists")
+	}
+
+	_, _, err = s.UpgradeToVersion(db, 2)
+
+	err = db.QueryRow("SELECT id FROM test;").Scan(&id1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("INSERT INTO test2 (id) VALUES ($1)", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = s.UpgradeToVersion(db, 1)
+	err = db.QueryRow("SELECT id FROM test;").Scan(&id1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.Exec("INSERT INTO test2 (id) VALUES ($1)", 1)
+	if err == nil {
+		t.Fatal("Table from second migration still exists after downgrade")
 	}
 
 	db.Close()

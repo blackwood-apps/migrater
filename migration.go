@@ -4,8 +4,11 @@ import (
 	"database/sql"
 )
 
+// Declare each atomic step of your migrations here
 type Step struct {
-	Up   []string
+	// These queries will be executed on increasing the database version
+	Up []string
+	// These queries will be executed on decreasing the database version
 	Down []string
 }
 
@@ -18,8 +21,10 @@ var initialMigration = Step{
 	},
 }
 
+// Basically all your migration steps go here. Declare each of your steps starting from the first one.
 type Set map[int]Step
 
+// Upgrades your database with the highest available version number
 func (m Set) Upgrade(db *sql.DB) (int, int, error) {
 	return m.UpgradeToVersion(db, m.maxVersion())
 }
@@ -34,6 +39,7 @@ func (m Set) maxVersion() int {
 	return max
 }
 
+// Upgrades or downgrades your database to a specific version
 func (m Set) UpgradeToVersion(db *sql.DB, v int) (int, int, error) {
 	err := ensureVersionStorageIsPresent(db)
 	if err != nil {

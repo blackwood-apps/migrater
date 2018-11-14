@@ -114,19 +114,19 @@ func currentVersion(db *sql.DB) (int, error) {
 }
 
 func ensureVersionStorageIsPresent(db *sql.DB) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
 	var e string
-	err = tx.QueryRow("SELECT 1 FROM _meta_versions WHERE 1=2;").Scan(&e)
+	err := db.QueryRow("SELECT 1 FROM _meta_versions WHERE 1=2;").Scan(&e)
 	if err != nil {
+		tx, err := db.Begin()
+		if err != nil {
+			return err
+		}
 		err = initialMigration.apply(0, tx)
 		if err != nil {
 			tx.Rollback()
 			return err
 		}
+		tx.Commit()
 	}
-	tx.Commit()
 	return nil
 }
